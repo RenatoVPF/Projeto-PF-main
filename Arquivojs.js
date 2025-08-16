@@ -14,7 +14,7 @@ enemyImg.src = "invader.png";
 const state = {
     running: false,
     lastTime: 0,
-    player: { x: (canvas.width/2)-25, y: canvas.height - 60, w: 50, h: 18, speed: 260, cooldown: 0 },
+    player: { x: (canvas.width/2)-25, y: canvas.height - 60, w: 70, h: 50, speed: 260, cooldown: 0 },
     bullets: [],
     enemies: (function spawn(){ const cols = 8, rows = 3; return Array.from({length: cols*rows}, (_, i) => ({ x: 40 + (i%cols) * ((canvas.width-80)/cols), y: 40 + Math.floor(i/cols)*40, w: 36, h: 18, alive: true })); })(),
     enemyDir: 1,enemySpeed: 30,score: 0,audio: { ctx: null, masterGain: null, bgOscs: [] }

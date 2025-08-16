@@ -59,6 +59,49 @@ const tiro = () => {
   playTone(1000, 0.06, "square", 0.08);
 };
 
+
+// Função recursiva para processar colisões entre balas e inimigos
+function processBullets(bullets, enemies, idx = 0) {
+  if (idx >= bullets.length) return;
+  const b = bullets[idx];
+  processEnemies(b, enemies, 0);
+  processBullets(bullets, enemies, idx + 1);
+}
+
+function processEnemies(bullet, enemies, idx) {
+  if (idx >= enemies.length) return;
+  const e = enemies[idx];
+  if (e.alive &&
+      bullet.x < e.x + e.w && bullet.x + bullet.w > e.x &&
+      bullet.y < e.y + e.h && bullet.y + bullet.h > e.y) {
+    e.alive = false;
+    bullet.y = -9999; // marca pra remoção
+    state.score += 10;
+    playTone(220 + Math.random()*200, 0.12, "sawtooth", 0.06);
+    return; // Para após a primeira colisão
+  }
+  processEnemies(bullet, enemies, idx + 1);
+}
+
+// Função recursiva para verificar se algum inimigo chegou na base
+function checkEnemyBase(enemies, idx = 0) {
+  if (idx >= enemies.length) return;
+  const e = enemies[idx];
+  if (e.alive && e.y + e.h >= state.player.y) {
+    state.running = false;
+    playTone(60, 0.6, "sine", 0.12);
+    return;
+  }
+  checkEnemyBase(enemies, idx + 1);
+}
+
+
+
+
+
+
+
+
 const update = (dt) => {
   // movimento do jogador
   const dir = (keys["ArrowLeft"] || keys["KeyA"] ? -1 : 0) + (keys["ArrowRight"] || keys["KeyD"] ? 1 : 0);
@@ -99,27 +142,12 @@ const update = (dt) => {
   }
 
   // colisões balas x inimigos
-  state.bullets.forEach(b => {
-    for (const e of state.enemies) {
-      if (!e.alive) continue;
-      if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
-        e.alive = false;
-        b.y = -9999; // marca pra remoção
-        state.score += 10;
-        playTone(220 + Math.random()*200, 0.12, "sawtooth", 0.06);
-      }
-    }
-  });
+   processBullets(state.bullets, state.enemies);
   state.bullets = state.bullets.filter(b => b.y > -50);
 
+
   // inimigo chega na base -> game over
-  for (const e of state.enemies) {
-    if (!e.alive) continue;
-    if (e.y + e.h >= state.player.y) {
-      state.running = false;
-      playTone(60, 0.6, "sine", 0.12);
-    }
-  }
+ checkEnemyBase(state.enemies);
 };
 
 // --- Render ---

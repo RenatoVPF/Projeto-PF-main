@@ -4,6 +4,13 @@ const ctx = canvas.getContext("2d");
 const playBtn = document.querySelector("#play-btn");
 const menu = document.querySelector("#menu");
 
+// images dos jogadores e dos inimigos
+const playerImg = new Image();
+playerImg.src = "nave.png";
+const enemyImg = new Image();
+enemyImg.src = "invader.png";
+
+
 const state = {
     running: false,
     lastTime: 0,
@@ -120,10 +127,20 @@ const drawRect = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x,
 
 const render = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawRect(state.player.x, state.player.y, state.player.w, state.player.h, "#4be38e");
+
+  // Player
+  ctx.drawImage(playerImg, state.player.x, state.player.y, state.player.w, state.player.h);
+
+  // Bullets
   state.bullets.forEach(b => drawRect(b.x, b.y, b.w, b.h, "#58a6ff"));
-  state.enemies.forEach(e => { if (e.alive) drawRect(e.x, e.y, e.w, e.h, "#ff6b6b"); });
+
+  // Enemies
+  state.enemies.forEach(e => {
+    if (e.alive) ctx.drawImage(enemyImg, e.x, e.y, e.w, e.h);
+  });
+
   ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.fillText("Score: " + state.score, 10, 20);
+
   if (!state.running) {
     ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ff5470"; ctx.font = "34px monospace"; ctx.textAlign = "center";

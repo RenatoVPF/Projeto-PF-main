@@ -6,9 +6,9 @@ const menu = document.querySelector("#menu");
 
 // images dos jogadores e dos inimigos
 const playerImg = new Image();
-playerImg.src = "nave.png";
+playerImg.src = "sprites/nave.png";
 const enemyImg = new Image();
-enemyImg.src = "invader2.png";
+enemyImg.src = "sprites/invader2.png";
 
 
 const state = {

@@ -14,7 +14,7 @@ enemyImg.src = "sprites/invader2.png";
 const state = {
     running: false,
     lastTime: 0,
-    player: { x: (canvas.width/2)-25, y: canvas.height - 60, w: 70, h: 50, speed: 260, cooldown: 0 },
+    player: { x: (canvas.width/2)-25, y: canvas.height - 60, w: 70, h: 50, speed: 450, cooldown: 0 },
     bullets: [],
     enemies: (function spawn(){ const cols = 8, rows = 3; return Array.from({length: cols*rows}, (_, i) => ({ x: 40 + (i%cols) * ((canvas.width-80)/cols), y: 40 + Math.floor(i/cols)*40, w: 36, h: 28, alive: true })); })(),
     enemyDir: 1,enemySpeed: 30,score: 0,audio: { ctx: null, masterGain: null, bgOscs: [] }
@@ -32,10 +32,12 @@ const ensureAudio = () => {
   const a = new AudioCtx();
   state.audio.ctx = a;
   state.audio.masterGain = a.createGain();
-  state.audio.masterGain.gain.value = 0.08; // volume geral (ajusta se quiser)
+  state.audio.masterGain.gain.value = 0.9; // volume geral (ajusta se quiser)
   state.audio.masterGain.connect(a.destination);
 };
 
+
+// Função para tocar um tom com frequência, duração e tipo especificados
 const playTone = (freq, duration = 0.08, type = "square", vol = 0.12) => {
   const a = state.audio.ctx;
   if (!a) return;
@@ -54,7 +56,7 @@ const playTone = (freq, duration = 0.08, type = "square", vol = 0.12) => {
 const tiro = () => {
   const p = state.player;
   if (p.cooldown > 0) return;
-  p.cooldown = 0.28;
+  p.cooldown = 0.18;
   state.bullets.push({ x: p.x + p.w/2 - 2, y: p.y - 6, w: 4, h: 8, dy: -420 });
   playTone(1000, 0.06, "square", 0.08);
 };
@@ -104,7 +106,7 @@ function checkEnemyBase(enemies, idx = 0) {
 
 const update = (dt) => {
   // movimento do jogador
-  const dir = (keys["ArrowLeft"] || keys["KeyA"] ? -1 : 0) + (keys["ArrowRight"] || keys["KeyD"] ? 1 : 0);
+  const dir = (keys["ArrowLeft"] || keys["KeyA"] ? -0.5 : 0) + (keys["ArrowRight"] || keys["KeyD"] ? 0.5 : 0);
   state.player.x += dir * state.player.speed * dt;
   if (state.player.x < 2) state.player.x = 2;
   if (state.player.x + state.player.w > canvas.width - 2) state.player.x = canvas.width - 2 - state.player.w;

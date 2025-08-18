@@ -103,7 +103,7 @@ function checkEnemyBase(enemies, idx = 0) {
 function enemyShoot() {
   // Escolhe inimigos vivos aleatoriamente para atirar
   state.enemies.forEach(e => {
-    if (e.alive && Math.random() < 0.001) { // ajuste a chance como quiser
+    if (e.alive && Math.random() < 0.002) { // ajuste a chance como quiser
       state.enemyBullets.push({
         x: e.x + e.w/2 - 2,
         y: e.y + e.h,

@@ -128,21 +128,21 @@ const update = (dt) => {
   state.enemyBullets = state.enemyBullets.map(b => ({ ...b, y: b.y + b.dy * dt })).filter(b => b.y < canvas.height + 20);
 
   state.enemyBullets.forEach(b => {
-  const p = state.player;
-  if (
-    b.x < p.x + p.w &&
-    b.x + b.w > p.x &&
-    b.y < p.y + p.h &&
-    b.y + b.h > p.y
-  ) {
-    b.y = canvas.height + 100; // remove o tiro
-    state.player.lives -= 1;
-    playTone(80, 0.2, "sawtooth", 0.15);
-    if (state.player.lives <= 0) {
-      state.running = false;
-    }
-  }
-});
+    const p = state.player;
+    if (
+      b.x < p.x + p.w &&
+      b.x + b.w > p.x &&
+      b.y < p.y + p.h &&
+      b.y + b.h > p.y
+    ) {
+      b.y = canvas.height + 100; // remove o tiro
+      state.player.lives -= 1;
+      playTone(80, 0.2, "sawtooth", 0.15);
+      if (state.player.lives <= 0) {
+        state.running = false;
+      }
+      }
+  });
 
   // movimento do jogador
   const dir = (keys["ArrowLeft"] || keys["KeyA"] ? -0.5 : 0) + (keys["ArrowRight"] || keys["KeyD"] ? 0.5 : 0);

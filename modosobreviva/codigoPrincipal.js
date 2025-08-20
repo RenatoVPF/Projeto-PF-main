@@ -8,6 +8,46 @@ playerImg.src = "sprites/nave.png";
 const enemyImg = new Image();
 enemyImg.src = "sprites/invader2.png";
 
+const musica = new Audio('sons/musica.mp3');// musica de kim lightyear
+musica.loop = true;
+musica.volume = 0.4;
+
+const somTiro = new Audio('sons/tiro.mp3');
+somTiro.volume = 0.2;
+
+const somDano = new Audio('sons/dano.mp3');
+somDano.volume = 0.2;
+const tocarDano = () => {
+  const s = somDano.cloneNode();
+  s.volume = somDano.volume;
+  s.play();
+};
+
+
+
+// funções para tocar música e som de tiro
+const tocarMusica = () => {
+  if (musica.paused) {
+    musica.currentTime = 0;
+    musica.play();
+  }
+};
+
+const pararMusica = () => {
+  musica.pause();
+  musica.currentTime = 0;
+};
+
+const tocarTiro = () => {
+  // Para permitir tiros rápidos, clone o áudio
+  const s = somTiro.cloneNode();
+  s.volume = somTiro.volume;
+  s.play();
+};
+
+
+
+
 const degToRad = deg => deg * Math.PI / 180;
 
 const initialPlayer = () => ({
@@ -17,9 +57,9 @@ const initialPlayer = () => ({
   h: 50,
   angle: 0,
   speed: 0,
-  maxSpeed: 260,
+  maxSpeed: 360,
   cooldown: 0,
-  lives: 3
+  lives: 5
 });
 
 const initialState = () => ({
@@ -118,39 +158,40 @@ const processBullets = (bullets, enemies, score) => {
     (acc, b) => {
       const { hit, updatedEnemies, scoreDelta } = processBullet(b, acc.enemies);
       return hit
-        ? { bullets: acc.bullets, enemies: updatedEnemies, score: acc.score + scoreDelta }
-        : { bullets: acc.bullets.concat([b]), enemies: acc.enemies, score: acc.score };
+        ? { bullets: acc.bullets, enemies: updatedEnemies, score: acc.score + scoreDelta, inimigoAcertado: true }
+        : { bullets: acc.bullets.concat([b]), enemies: acc.enemies, score: acc.score, inimigoAcertado: acc.inimigoAcertado };
     },
-    { bullets: [], enemies: enemies.map(e => ({ ...e })), score }
+    { bullets: [], enemies: enemies.map(e => ({ ...e })), score, inimigoAcertado: false }
   );
 };
 
 const processPlayerHit = (player, enemyBullets) => {
-  // Fatores para reduzir a hitbox (exemplo: 0.6 = 60% do tamanho original)
-  const hitboxFactorW = 0.2;
-  const hitboxFactorH = 0.2;
-  const hitboxOffsetX = (player.w * (1 - hitboxFactorW)) / 2;
-  const hitboxOffsetY = (player.h * (1 - hitboxFactorH)) / 2;
+  // Hitbox centralizada: centro em (player.x, player.y)
+  const hitboxX = player.x - player.w / 2;
+  const hitboxY = player.y - player.h / 2;
+  const hitboxW = player.w;
+  const hitboxH = player.h;
 
   const hits = enemyBullets.filter(b =>
-    b.x < player.x + hitboxOffsetX + player.w * hitboxFactorW &&
-    b.x + b.w > player.x + hitboxOffsetX &&
-    b.y < player.y + hitboxOffsetY + player.h * hitboxFactorH &&
-    b.y + b.h > player.y + hitboxOffsetY
+    b.x < hitboxX + hitboxW &&
+    b.x + b.w > hitboxX &&
+    b.y < hitboxY + hitboxH &&
+    b.y + b.h > hitboxY
   ).length;
 
   const newBullets = enemyBullets.filter(b =>
     !(
-      b.x < player.x + hitboxOffsetX + player.w * hitboxFactorW &&
-      b.x + b.w > player.x + hitboxOffsetX &&
-      b.y < player.y + hitboxOffsetY + player.h * hitboxFactorH &&
-      b.y + b.h > player.y + hitboxOffsetY
+      b.x < hitboxX + hitboxW &&
+      b.x + b.w > hitboxX &&
+      b.y < hitboxY + hitboxH &&
+      b.y + b.h > hitboxY
     )
   );
 
   return {
     player: { ...player, lives: player.lives - hits },
-    enemyBullets: newBullets
+    enemyBullets: newBullets,
+    foiAcertado: hits > 0 // flag funcional
   };
 };
 
@@ -158,7 +199,7 @@ const spawnEnemiesWave = (canvas, quantidade = 5) =>
   Array.from({ length: quantidade }, () => spawnEnemy(canvas));
 
 const tiro = (state) => {
-  if (state.player.cooldown > 0) return state;
+  if (state.player.cooldown > 0) return { state, atirou: false };
   const rad = degToRad(state.player.angle);
   const bullet = {
     x: state.player.x + Math.cos(rad) * 30,
@@ -169,9 +210,12 @@ const tiro = (state) => {
     h: 6
   };
   return {
-    ...state,
-    player: { ...state.player, cooldown: 0.19 }, // ajuste aqui para frequência desejada
-    bullets: state.bullets.concat([bullet])
+    state: {
+      ...state,
+      player: { ...state.player, cooldown: 0.19 },
+      bullets: state.bullets.concat([bullet])
+    },
+    atirou: true
   };
 };
 
@@ -179,16 +223,19 @@ const nextState = (state, keys, dt, canvas) => {
   const precisaSpawnInicial = state.enemies.length === 0;
   const todosMortos = state.enemies.length > 0 && state.enemies.every(e => !e.alive);
   const novosInimigos = (precisaSpawnInicial || todosMortos)
-    ? spawnEnemiesWave(canvas, 5 + Math.floor(state.score / 50))
-    : [];
+  ? spawnEnemiesWave(canvas, 5 + Math.floor(state.score / 50))
+  : [];
   const enemies = state.enemies.filter(e => e.alive).concat(novosInimigos);
+
 
   const playerAtualizado = updatePlayer(state.player, keys, dt, canvas);
 
+
   const podeAtirar = keys["Space"] && playerAtualizado.cooldown === 0;
   const stateAfterTiro = podeAtirar
-    ? tiro({ ...state, player: playerAtualizado, bullets: state.bullets })
-    : { ...state, player: playerAtualizado, bullets: state.bullets };
+  ? tiro({ ...state, player: playerAtualizado, bullets: state.bullets }).state
+  : { ...state, player: playerAtualizado, bullets: state.bullets };
+
 
   const bullets = updateBullets(stateAfterTiro.bullets, dt, canvas);
   const movedEnemies = updateEnemies(enemies, stateAfterTiro.player, dt);
@@ -196,6 +243,7 @@ const nextState = (state, keys, dt, canvas) => {
   const bulletResult = processBullets(bullets, movedEnemies, state.score);
   const playerHitResult = processPlayerHit(stateAfterTiro.player, enemyBullets);
   const running = playerHitResult.player.lives > 0;
+
 
   return {
     ...state,
@@ -205,7 +253,10 @@ const nextState = (state, keys, dt, canvas) => {
     enemyBullets: playerHitResult.enemyBullets,
     score: bulletResult.score,
     running,
-    lastTime: state.lastTime
+    lastTime: state.lastTime,
+    foiAcertado: playerHitResult.foiAcertado,
+    inimigoAcertado: bulletResult.inimigoAcertado,
+    inimigosAtiraram: enemyBullets.length > state.enemyBullets.length
   };
 };
 
@@ -264,10 +315,29 @@ function drawRect(x, y, w, h, color) {
 
 // --- Loop funcional ---
 function loop(state, ts) {
-  if (!state.running) return;
+  if (!state.running) {
+    pararMusica();
+    return;
+  }
   const dt = Math.min(0.05, (ts - (state.lastTime || ts)) / 1000);
   const newState = nextState({ ...state, lastTime: ts }, keys, dt, canvas);
+  
   render(newState);
+
+  // sons
+  if (state.player.cooldown === 0 && keys["Space"]) {
+    tocarTiro();
+  }
+  if (newState.inimigosAtiraram) {
+    tocarTiro();
+  }
+  if (newState.foiAcertado) {
+    tocarDano();
+  }
+  if (newState.inimigoAcertado) {
+    tocarDano();
+  }
+
   requestAnimationFrame(ts2 => loop(newState, ts2));
 }
 
@@ -286,6 +356,8 @@ canvas.addEventListener("click", function(e) {
   ) {
     menu.style.display = "none";
     canvas.style.display = "block";
+    tocarMusica();
+    canvas.focus && canvas.focus();
     const novoEstado = { ...initialState(), running: true };
     render(novoEstado);
     requestAnimationFrame(ts => loop(novoEstado, ts));
@@ -295,6 +367,9 @@ canvas.addEventListener("click", function(e) {
 playBtn.addEventListener("click", () => {
   menu.style.display = "none";
   canvas.style.display = "block";
+  tocarMusica();
+  canvas.focus && canvas.focus();
+  
   const novoEstado = { ...initialState(), running: true };
   render(novoEstado);
   requestAnimationFrame(ts => loop(novoEstado, ts));

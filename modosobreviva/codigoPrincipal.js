@@ -59,7 +59,8 @@ const initialPlayer = () => ({
   speed: 0,
   maxSpeed: 360,
   cooldown: 0,
-  lives: 5
+  lives: 5,
+  invulneravelAte: 0
 });
 
 const initialState = () => ({
@@ -165,8 +166,16 @@ const processBullets = (bullets, enemies, score) => {
   );
 };
 
-const processPlayerHit = (player, enemyBullets) => {
-  // Hitbox centralizada: centro em (player.x, player.y)
+const processPlayerHit = (player, enemyBullets, ts) => {
+  // se ainda está invulnerável, não sofre dano
+  if (ts < player.invulneravelAte) {
+    return {
+      player,
+      enemyBullets,
+      foiAcertado: false
+    };
+  }
+
   const hitboxX = player.x - player.w / 2;
   const hitboxY = player.y - player.h / 2;
   const hitboxW = player.w;
@@ -189,9 +198,11 @@ const processPlayerHit = (player, enemyBullets) => {
   );
 
   return {
-    player: { ...player, lives: player.lives - hits },
+    player: hits > 0
+      ? { ...player, lives: player.lives - hits, invulneravelAte: ts + 2000 } // meio segundo
+      : player,
     enemyBullets: newBullets,
-    foiAcertado: hits > 0 // flag funcional
+    foiAcertado: hits > 0
   };
 };
 
@@ -219,31 +230,30 @@ const tiro = (state) => {
   };
 };
 
-const nextState = (state, keys, dt, canvas) => {
+const nextState = (state, keys, dt, canvas, ts) => {
   const precisaSpawnInicial = state.enemies.length === 0;
   const todosMortos = state.enemies.length > 0 && state.enemies.every(e => !e.alive);
   const novosInimigos = (precisaSpawnInicial || todosMortos)
-  ? spawnEnemiesWave(canvas, 5 + Math.floor(state.score / 50))
-  : [];
+    ? spawnEnemiesWave(canvas, 5 + Math.floor(state.score / 50))
+    : [];
   const enemies = state.enemies.filter(e => e.alive).concat(novosInimigos);
-
 
   const playerAtualizado = updatePlayer(state.player, keys, dt, canvas);
 
-
   const podeAtirar = keys["Space"] && playerAtualizado.cooldown === 0;
   const stateAfterTiro = podeAtirar
-  ? tiro({ ...state, player: playerAtualizado, bullets: state.bullets }).state
-  : { ...state, player: playerAtualizado, bullets: state.bullets };
-
+    ? tiro({ ...state, player: playerAtualizado, bullets: state.bullets }).state
+    : { ...state, player: playerAtualizado, bullets: state.bullets };
 
   const bullets = updateBullets(stateAfterTiro.bullets, dt, canvas);
   const movedEnemies = updateEnemies(enemies, stateAfterTiro.player, dt);
   const enemyBullets = enemyShoot(movedEnemies, stateAfterTiro.player, updateBullets(state.enemyBullets, dt, canvas));
   const bulletResult = processBullets(bullets, movedEnemies, state.score);
-  const playerHitResult = processPlayerHit(stateAfterTiro.player, enemyBullets);
-  const running = playerHitResult.player.lives > 0;
 
+  //  agora passa o ts absoluto
+  const playerHitResult = processPlayerHit(stateAfterTiro.player, enemyBullets, ts);
+
+  const running = playerHitResult.player.lives > 0;
 
   return {
     ...state,
@@ -253,7 +263,7 @@ const nextState = (state, keys, dt, canvas) => {
     enemyBullets: playerHitResult.enemyBullets,
     score: bulletResult.score,
     running,
-    lastTime: state.lastTime,
+    lastTime: ts, // atualizado aqui
     foiAcertado: playerHitResult.foiAcertado,
     inimigoAcertado: bulletResult.inimigoAcertado,
     inimigosAtiraram: enemyBullets.length > state.enemyBullets.length
@@ -263,11 +273,16 @@ const nextState = (state, keys, dt, canvas) => {
 const render = (state) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
-  ctx.translate(state.player.x, state.player.y);
-  ctx.rotate(degToRad(state.player.angle) + Math.PI / 2);
-  ctx.drawImage(playerImg, -state.player.w / 2, -state.player.h / 2, state.player.w, state.player.h);
-  ctx.restore();
+  const invulneravel = state.lastTime < state.player.invulneravelAte;
+  const deveDesenhar = !invulneravel || Math.floor(state.lastTime / 100) % 2 === 0;
+
+  if (deveDesenhar) {
+    ctx.save();
+    ctx.translate(state.player.x, state.player.y);
+    ctx.rotate(degToRad(state.player.angle) + Math.PI / 2);
+    ctx.drawImage(playerImg, -state.player.w / 2, -state.player.h / 2, state.player.w, state.player.h);
+    ctx.restore();
+  }
 
   state.bullets.forEach(b => drawRect(b.x, b.y, b.w, b.h, "#58a6ff"));
   state.enemyBullets.forEach(b => drawRect(b.x, b.y, b.w, b.h, "#ff5470"));
@@ -320,7 +335,7 @@ function loop(state, ts) {
     return;
   }
   const dt = Math.min(0.05, (ts - (state.lastTime || ts)) / 1000);
-  const newState = nextState({ ...state, lastTime: ts }, keys, dt, canvas);
+  const newState = nextState(state, keys, dt, canvas, ts);
   
   render(newState);
 
